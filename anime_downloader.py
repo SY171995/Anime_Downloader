@@ -4,17 +4,28 @@ import wget
 import mechanize
 import requests
 import argparse
+from Xlib import display
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--anime', dest='a',   help='anime name')
 parser.add_argument('--page_of_anime ', dest='page',  help='page of anime')
+parser.add_argument('--order ', dest='order',  help='1 or 2 to start from beginning or end respectively,0 for particular episode ')
+parser.add_argument('--episode', dest='episode',   help='episode name')
 args=parser.parse_args()
 anime=args.a
 page=args.page
+order=args.order
+episode=args.episode
 
 if anime is None and page is None:
-   parser.error("at least one of --foo and --bar required")
+   parser.error("at least one of --anime and --page_of_anime required")
    sys.exit()
+
+if order=='0' and episode is None:
+    parser.error("--episode field is required")
+    sys.exit()
+elif order is not '0' and episode is None:
+    episode=-1
 
 def site(anime):
     br = mechanize.Browser()
@@ -26,11 +37,43 @@ def site(anime):
     br.form['keyword_search'] = anime
     response=br.submit()
     r1=requests.get(str(response.geturl()))
+    r1=requests.get('http://animeonline.to/search.html?keyword='+anime)
     data = r1.text
     soup = BeautifulSoup(data)
     alink = soup.find_all("a",title=str(anime))
     return alink[0]["href"]
 
+def download_episodes(d):
+    r1=requests.get(d["href"])
+    data = r1.text
+    soup = BeautifulSoup(data)
+    link=soup.find_all("a", id="download_link")
+    r2=requests.get(link[0]["href"])
+    data = r2.text
+    soup = BeautifulSoup(data)
+    alist=soup.find_all("a")
+    name=d.get_text().replace(" ","").split()[0]
+    for j,d1 in enumerate(alist):
+        if d1.get_text() == 'Download (360P - mp4':
+            wget.download(d1["href"],name)
+    print name
+
+
+def download(a,index,no_ofepisodes):
+    if index==-1:
+        no_ofepisodes=int(no_ofepisodes)
+        for i in range(0,no_ofepisodes):
+            d1 = display.Display()
+            s = d1.screen()
+            root1 = s.root
+            root1.warp_pointer(500,500)
+            d1.sync()
+            d=a[i]
+            print i
+            download_episodes(d)
+    else:
+        d=a[index]
+        download_episodes(d)
 
 
 
@@ -39,24 +82,31 @@ if page is not None:
     r  = requests.get(page,timeout=5)
     data = r.text
     soup = BeautifulSoup(data)
-
     lepisodes = soup.find_all("div", class_="list_episode")
     a=lepisodes[0].find_all("a")
-    for i,d in enumerate(a):
-        r1=requests.get(d["href"])
-        data = r1.text
-        soup = BeautifulSoup(data)
-        link=soup.find_all("a", id="download_link")
-        r2=requests.get(link[0]["href"])
-        data = r2.text
-        soup = BeautifulSoup(data)
-        alist=soup.find_all("a")
-        for j,d1 in enumerate(alist):
-            if d1.get_text() == 'Download (360P - mp4':
-                wget.download(d1["href"],d.get_text())
-        print d.get_text()
+    if order=='1' or order is None:
+        index=-1
+        if episode==-1:
+            no_ofepisodes=len(a)
+        else:
+            no_ofepisodes=episode
+        a.reverse()
+        download(a,index,no_ofepisodes)
+    elif order=='2':
+        index=-1
+        if episode==-1:
+            no_ofepisodes=len(a)
+        else:
+            no_ofepisodes=len(a)-episode+1
+        download(a,index,no_ofepisodes)
+    else:
+        a.reverse()
+        index=episode-1
+        no_ofepisodes=1
+        download(a,index,no_ofepisodes)
 
 else:
+    anime=anime.replace("_"," ")
     page=site(anime)
     r  = requests.get(page,timeout=5)
     data = r.text
@@ -64,21 +114,20 @@ else:
 
     lepisodes = soup.find_all("div", class_="list_episode")
     a=lepisodes[0].find_all("a")
-    for i,d in enumerate(a):
-        r1=requests.get(d["href"])
-        data = r1.text
-        soup = BeautifulSoup(data)
-        link=soup.find_all("a", id="download_link")
-        r2=requests.get(link[0]["href"])
-        data = r2.text
-        soup = BeautifulSoup(data)
-        alist=soup.find_all("a")
-        for j,d1 in enumerate(alist):
-            if d1.get_text() == 'Download (360P - mp4':
-                wget.download(d1["href"],d.get_text())
-        print d.get_text()
-
-
+    if order=='1' or order is None:
+        index=-1
+        no_ofepisodes=episode
+        a.reverse()
+        download(a,index,no_ofepisodes)
+    elif order=='2':
+        index=-1
+        no_ofepisodes=len(a)-episode+1
+        download(a,index,no_ofepisodes)
+    else:
+        a.reverse()
+        index=episode-1
+        no_ofepisodes=1
+        download(a,index,no_ofepisodes)
 
 # import urllib2
 # from bs4 import BeautifulSoup

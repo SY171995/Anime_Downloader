@@ -10,9 +10,9 @@ just pass that anime name or the anime site as argument
 python anime_downloader.py --anime one_piece --order 1
 '''
 ##Arguments
-'''
+''
 --anime         'name of the anime '  
-'''
+''
 '''
 --page_of_anime 'site of the anime '
 '''
